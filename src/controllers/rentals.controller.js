@@ -8,17 +8,9 @@ async function getRentals(req, res) {
     const customerId = req.query.customerId;
     const gameId = req.query.gameId;
 
-    if (!customerId && !gameId) {
-      const response = await connection.query(
-        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games.id GROUP  BY rentals.id, customers.id, games.id, categories.id`
-      );
-      res.send(response.rows);
-      return;
-    }
-
     if (customerId && !gameId) {
       const response = await connection.query(
-        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games.id WHERE rentals."customerId" = $1 GROUP  BY rentals.id, customers.id, games.id, categories.id;`,
+        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games."categoryId" WHERE rentals."customerId" = $1 GROUP  BY rentals.id, customers.id, games.id, categories.name;`,
         [customerId]
       );
       res.send(response.rows);
@@ -27,7 +19,7 @@ async function getRentals(req, res) {
 
     if (!customerId && gameId) {
       const response = await connection.query(
-        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games.id WHERE rentals."gameId" = $1 GROUP  BY rentals.id, customers.id, games.id, categories.id;`,
+        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games."categoryId" WHERE rentals."gameId" = $1 GROUP  BY rentals.id, customers.id, games.id, categories.name;`,
         [gameId]
       );
       res.send(response.rows);
@@ -36,14 +28,20 @@ async function getRentals(req, res) {
 
     if (customerId && gameId) {
       const response = await connection.query(
-        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games.id WHERE rentals."gameId" = $1 AND rentals."customerId" = $2 GROUP  BY rentals.id, customers.id, games.id, categories.id;`,
+        `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games."categoryId" WHERE rentals."gameId" = $1 AND rentals."customerId" = $2 GROUP  BY rentals.id, customers.id, games.id, categories.name;`,
         [gameId, customerId]
       );
 
       res.send(response.rows);
       return;
     }
+
+    const teste = await connection.query(
+      `SELECT rentals.*, json_build_object('id', customers.id, 'name', customers.name) AS "customers", json_build_object('id', games.id, 'name', games.name, 'categoryId', games."categoryId", 'categoryName', categories.name) AS "game" FROM rentals JOIN customers ON rentals."customerId" = customers.id JOIN games ON rentals."gameId" = games.id JOIN categories ON categories.id = games."categoryId";`
+    );
+    res.send(teste.rows);
   } catch (error) {
+    console.log(error);
     res.status(500).send({ msg: "Erro no servidor" });
   }
 }
@@ -80,14 +78,10 @@ async function postRentals(req, res) {
       return;
     }
 
-    console.log(responseGame.rows[0].stockTotal, " game");
-
     const responseStock = await connection.query(
       `SELECT * FROM rentals WHERE "gameId"=$1 AND "returnDate" IS NULL;`,
       [gameId]
     );
-
-    console.log(responseStock.rows, " estoque");
 
     if (responseStock) {
       if (responseStock.rows.length >= responseGame.rows[0].stockTotal) {
@@ -126,8 +120,6 @@ async function endRental(req, res) {
       [id]
     );
 
-    console.log(hasRental.rows);
-
     if (hasRental.rows.length === 0) {
       res.status(404).send({ msg: `Aluguel não encontrado` });
       return;
@@ -149,8 +141,6 @@ async function endRental(req, res) {
         Number(hasRental.rows[0].originalPrice) /
         Number(hasRental.rows[0].daysRented);
       const fee = daysfee * originalPrice;
-
-      console.log(fee);
 
       const reponse = await connection.query(
         `UPDATE rentals SET "returnDate"=$1, "delayFee"=$2 WHERE id=$3;`,

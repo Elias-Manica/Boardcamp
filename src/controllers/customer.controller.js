@@ -86,8 +86,6 @@ async function updateCustomers(req, res) {
     const { id } = req.params;
     const { name, phone, cpf, birthday } = req.body;
 
-    console.log(id);
-
     if (!id) {
       res.status(400).send({ msg: "É necessário o ID do usuário" });
       return;
@@ -106,12 +104,8 @@ async function updateCustomers(req, res) {
       [cpf]
     );
 
-    console.log(response);
-
     if (response.rows.length > 0) {
       if (Number(response.rows[0].id) !== Number(id)) {
-        console.log(response.rows[0].id);
-        console.log(id);
         res
           .status(409)
           .send({ msg: `Já existe um usuário com o cpf igual a ${cpf}` });

@@ -15,7 +15,7 @@ async function getGames(req, res) {
     }
 
     const response = await connection.query(
-      "SELECT * FROM games WHERE name LIKE $1;",
+      "SELECT * FROM games WHERE LOWER(name) LIKE LOWER($1);",
       [name + "%"]
     );
     res.send(response.rows);
